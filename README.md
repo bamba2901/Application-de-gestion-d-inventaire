@@ -1,30 +1,29 @@
-# 📦 Système de gestion d'inventaire
+# 📦 Application de gestion d'inventaire
 
-Application web de gestion d'inventaire avec génération automatisée de rapports et recommandations de réapprovisionnement par IA générative.
+Conception et développement d'une application web de gestion d'inventaire avec génération automatisée de rapports et recommandations de réapprovisionnement par IA générative.
 
-**INF4173 – Projet Synthèse | UQO, Hiver 2026**
+**INF4173 – Projet Synthèse | UQO, Hiver 2026**  
 Cheikh Bamba Gueye & Mouhamadou Lamine Dial
 
 ---
 
-## 🚀 Démarrage rapide
+## 🚀 Démarrage
 
-### Backend (API REST)
+### Backend
 ```bash
 cd backend
 npm install
-cp .env.example .env   # optionnel : ajouter OPENAI_API_KEY
 npm run dev
 ```
-➡️ API disponible sur `http://localhost:4000`
+➡️ API sur `http://localhost:4000`
 
-### Frontend (React)
+### Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-➡️ Interface disponible sur `http://localhost:5173`
+➡️ Interface sur `http://localhost:5173`
 
 ---
 
@@ -47,54 +46,31 @@ npm run dev
 
 ---
 
-## 📁 Structure du projet
+## ✅ Fonctionnalités implémentées
 
-```
-inventaire-projet/
-├── backend/
-│   ├── src/
-│   │   ├── server.js     # API REST (toutes les routes)
-│   │   └── db.js         # Base de données SQLite
-│   ├── data/             # Fichier .db (créé automatiquement)
-│   ├── .env.example      # Template de configuration
-│   └── package.json
-└── frontend/
-    ├── src/
-    │   ├── App.jsx       # Application React principale
-    │   ├── main.jsx      # Point d'entrée
-    │   └── styles.css    # Styles globaux
-    ├── index.html
-    ├── vite.config.mjs
-    └── package.json
-```
-
----
-
-## ✨ Fonctionnalités
-
-- 🔐 Authentification avec deux rôles (gestionnaire / employé)
-- 📦 Gestion complète des produits (CRUD)
+- 🔐 Authentification (gestionnaire / employé)
+- 📦 Gestion des produits (CRUD)
 - 🏷️ Gestion des catégories (CRUD)
 - 🚚 Gestion des fournisseurs (CRUD)
 - 🔄 Mouvements de stock (entrées / sorties)
-- 🚨 Alertes automatiques (produits sous seuil)
-- 📊 Tableau de bord en temps réel
-- 🤖 Rapports et recommandations IA (local + OpenAI)
-- 👥 Gestion des utilisateurs (gestionnaire uniquement)
+- 🚨 Alertes produits sous seuil
+- 📊 Tableau de bord
+- 🤖 Rapports et recommandations IA
+- 👥 Gestion des utilisateurs
+
+## 🔄 En cours
+
+- Tests manuels complets
+- IA phase 2
+- Rapport final
 
 ---
 
 ## ⚙️ Configuration IAGen (optionnel)
 
 Créer `backend/.env` :
-```env
+```
 PORT=4000
 OPENAI_API_KEY=sk-...
 ```
 Sans clé API, la génération locale s'active automatiquement.
-
----
-
-## 🔗 Dépôt GitHub
-
-https://github.com/bamba2901/Application-de-gestion-d-inventaire
