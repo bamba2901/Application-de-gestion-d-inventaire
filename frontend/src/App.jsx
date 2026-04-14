@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { jsPDF } from 'jspdf';
 
 const API = 'http://localhost:4000/api';
 const get = (path, opts = {}) => fetch(`${API}${path}`, opts).then(r => r.json());
@@ -600,34 +601,145 @@ export default function App() {
     finally { setLoadingAi(false); }
   };
 
-  const downloadReport = (format) => {
-    const date  = new Date().toLocaleDateString('fr-CA');
-    const titre = `Rapport d'inventaire StockFlow — ${date}`;
+  const downloadReport = () => {
+    const date = new Date().toLocaleDateString('fr-CA');
+    const doc  = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, ml = 15, mr = 15, cw = W - ml - mr;
+    let y = 0;
 
-    const stockLines = (aiReport?.stockItems || []).map(i =>
-      `  • ${i.name.padEnd(22)} stock: ${String(i.stock).padStart(3)} / seuil: ${i.minStock}  [${i.status.toUpperCase()}]`
-    ).join('\n');
-    const recLines = (aiRec?.items || []).map(i =>
-      `  ${i.rank}. ${i.name.padEnd(22)} commander ${i.suggested} unités  (urgence: ${i.urgency})`
-    ).join('\n');
+    // ── En-tête bleu ──────────────────────────────────────────────────────────
+    doc.setFillColor(30, 27, 75);
+    doc.rect(0, 0, W, 38, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+    doc.text('StockFlow', ml, 14);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text('Rapport d\'analyse des stocks', ml, 21);
+    doc.setFontSize(8);
+    doc.text(`Genere le : ${date}`, W - mr, 14, { align: 'right' });
+    doc.text(`INF4173 - Projet Synthese`, W - mr, 20, { align: 'right' });
+    y = 46;
 
-    const texte = [
-      titre, '─'.repeat(60), '',
-      `Score de santé du stock : ${aiReport?.healthScore ?? '—'}%`,
-      `Produits total : ${aiReport?.totalProducts ?? '—'}   Sous seuil : ${aiReport?.criticalCount ?? '—'}`,
-      aiReport?.aiComment ? `\nAnalyse : ${aiReport.aiComment}` : '',
-      '', 'ÉTAT DES STOCKS', '─'.repeat(40),
-      stockLines || '  (aucune donnée)',
-      '', 'RECOMMANDATIONS DE RÉAPPROVISIONNEMENT', '─'.repeat(40),
-      recLines || '  (aucune donnée)',
-      aiRec?.aiComment ? `\nConseil : ${aiRec.aiComment}` : '',
-      '', `Généré le ${date} par StockFlow`,
-    ].join('\n');
+    // ── Score de santé ────────────────────────────────────────────────────────
+    const score = aiReport?.healthScore ?? 0;
+    const scoreColor = score >= 70 ? [22, 163, 74] : score >= 40 ? [217, 119, 6] : [220, 38, 38];
+    doc.setDrawColor(...scoreColor); doc.setLineWidth(1);
+    doc.circle(ml + 12, y + 8, 10);
+    doc.setTextColor(...scoreColor); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+    doc.text(`${score}%`, ml + 12, y + 10, { align: 'center' });
+    doc.setTextColor(30, 41, 59); doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text('Score de sante du stock', ml + 28, y + 6);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+    const msg = (aiReport?.criticalCount ?? 0) === 0
+      ? 'Tous les produits sont correctement approvisionnes.'
+      : `${aiReport?.criticalCount} produit(s) necessitent une action immediate.`;
+    doc.text(msg, ml + 28, y + 13);
+    // KPIs
+    const kpis = [
+      { v: aiReport?.totalProducts ?? 0, l: 'Produits', c: [99, 102, 241] },
+      { v: aiReport?.criticalCount ?? 0, l: 'Sous seuil', c: (aiReport?.criticalCount ?? 0) > 0 ? [245, 158, 11] : [34, 197, 94] },
+      { v: aiRec?.items?.length ?? 0,    l: 'Recommandations', c: [45, 212, 191] },
+    ];
+    kpis.forEach((k, i) => {
+      const kx = ml + 100 + i * 32;
+      doc.setFillColor(248, 250, 252); doc.roundedRect(kx, y, 28, 20, 2, 2, 'F');
+      doc.setTextColor(...k.c); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text(String(k.v), kx + 14, y + 10, { align: 'center' });
+      doc.setTextColor(148, 163, 184); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text(k.l, kx + 14, y + 16, { align: 'center' });
+    });
+    y += 28;
 
+    // ── Commentaire IA ────────────────────────────────────────────────────────
+    if (aiReport?.aiComment) {
+      doc.setFillColor(239, 246, 255); doc.roundedRect(ml, y, cw, 14, 2, 2, 'F');
+      doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8);
+      doc.line(ml, y, ml, y + 14);
+      doc.setTextColor(29, 78, 216); doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
+      const lines = doc.splitTextToSize('Analyse : ' + aiReport.aiComment, cw - 6);
+      doc.text(lines, ml + 4, y + 5);
+      y += 18;
+    }
+
+    // ── Tableau état des stocks ───────────────────────────────────────────────
+    doc.setTextColor(148, 163, 184); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text('ETAT DES STOCKS', ml, y); y += 5;
+    // en-têtes
+    const cols1 = [['Produit', 60], ['Stock', 20], ['Seuil', 20], ['Statut', 30]];
+    doc.setFillColor(248, 250, 252); doc.rect(ml, y, cw, 7, 'F');
+    doc.setTextColor(100, 116, 139); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    let cx = ml + 2;
+    cols1.forEach(([h]) => { doc.text(h, cx, y + 5); cx += cols1.find(c => c[0] === h)[1]; });
+    y += 7;
+    (aiReport?.stockItems || []).forEach((item, idx) => {
+      if (y > 260) { doc.addPage(); y = 20; }
+      if (idx % 2 === 0) { doc.setFillColor(250, 252, 254); doc.rect(ml, y, cw, 7, 'F'); }
+      doc.setTextColor(30, 41, 59); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+      cx = ml + 2;
+      doc.text(item.name, cx, y + 5); cx += 60;
+      doc.text(String(item.stock), cx, y + 5); cx += 20;
+      doc.text(String(item.minStock), cx, y + 5); cx += 20;
+      const sc = item.status === 'ok' ? [22, 163, 74] : item.status === 'critique' ? [202, 138, 4] : [220, 38, 38];
+      const sl = item.status === 'ok' ? 'OK' : item.status === 'critique' ? 'Critique' : 'Rupture';
+      doc.setFillColor(...sc, 30); doc.roundedRect(cx, y + 1, 22, 5, 1, 1, 'F');
+      doc.setTextColor(...sc); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text(sl, cx + 11, y + 4.5, { align: 'center' });
+      y += 7;
+    });
+    y += 6;
+
+    // ── Tableau recommandations ───────────────────────────────────────────────
+    if (y > 230) { doc.addPage(); y = 20; }
+    doc.setTextColor(148, 163, 184); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text('RECOMMANDATIONS DE REAPPROVISIONNEMENT', ml, y); y += 5;
+    if (aiRec?.aiComment) {
+      doc.setFillColor(239, 246, 255); doc.roundedRect(ml, y, cw, 10, 2, 2, 'F');
+      doc.setTextColor(29, 78, 216); doc.setFontSize(8); doc.setFont('helvetica', 'italic');
+      const ls = doc.splitTextToSize('Conseil : ' + aiRec.aiComment, cw - 6);
+      doc.text(ls, ml + 4, y + 4);
+      y += 13;
+    }
+    doc.setFillColor(248, 250, 252); doc.rect(ml, y, cw, 7, 'F');
+    doc.setTextColor(100, 116, 139); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    cx = ml + 2;
+    [['#', 8], ['Produit', 55], ['Stock actuel', 25], ['Sorties tot.', 25], ['Qte suggeree', 30], ['Urgence', 30]].forEach(([h, w]) => {
+      doc.text(h, cx, y + 5); cx += w;
+    });
+    y += 7;
+    (aiRec?.items || []).forEach((item, idx) => {
+      if (y > 260) { doc.addPage(); y = 20; }
+      if (idx % 2 === 0) { doc.setFillColor(250, 252, 254); doc.rect(ml, y, cw, 7, 'F'); }
+      doc.setTextColor(99, 102, 241); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      cx = ml + 2; doc.text(String(item.rank), cx, y + 5); cx += 8;
+      doc.setTextColor(30, 41, 59); doc.setFont('helvetica', 'normal');
+      doc.text(item.product, cx, y + 5); cx += 55;
+      doc.text(String(item.currentStock), cx, y + 5); cx += 25;
+      doc.text(String(item.totalSales), cx, y + 5); cx += 25;
+      doc.setTextColor(79, 70, 229); doc.setFont('helvetica', 'bold');
+      doc.text(`+${item.suggested}`, cx, y + 5); cx += 30;
+      const uc = item.urgency === 'critique' ? [220, 38, 38] : item.urgency === 'elevee' ? [217, 119, 6] : [22, 163, 74];
+      const ul = item.urgency === 'critique' ? 'Urgent' : item.urgency === 'elevee' ? 'Eleve' : 'Normal';
+      doc.setFillColor(...uc, 30); doc.roundedRect(cx, y + 1, 22, 5, 1, 1, 'F');
+      doc.setTextColor(...uc); doc.setFontSize(7);
+      doc.text(ul, cx + 11, y + 4.5, { align: 'center' });
+      y += 7;
+    });
+
+    // ── Pied de page ──────────────────────────────────────────────────────────
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+      doc.line(ml, 285, W - mr, 285);
+      doc.setTextColor(148, 163, 184); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+      doc.text('StockFlow — Systeme de gestion d\'inventaire', ml, 290);
+      doc.text(`Page ${p} / ${pages}`, W - mr, 290, { align: 'right' });
+    }
+
+    doc.save(`rapport-stockflow-${date}.pdf`);
+    toast('Rapport PDF telecharge avec succes', 'success');
     if (false) {
-      // TXT supprimé
-    } else {
-      const hc = (aiReport?.healthScore ?? 0) >= 70 ? '#16a34a' : (aiReport?.healthScore ?? 0) >= 40 ? '#d97706' : '#dc2626';
+      const hc = '';
       const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -1425,7 +1537,7 @@ export default function App() {
                   {loadingAi ? <><span className="spin">{I.refresh}</span> Analyse…</> : <>{I.spark} Lancer l'analyse</>}
                 </button>
                 {aiReport && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => downloadReport('pdf')}>{I.download} Télécharger PDF</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => downloadReport()}>{I.download} Télécharger PDF</button>
                 )}
               </div>
             </div>
