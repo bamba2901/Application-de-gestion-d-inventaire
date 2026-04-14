@@ -102,8 +102,7 @@ app.put('/api/categories/:id', requireRole(['gestionnaire']), (req, res) => {
   res.json({ id: Number(req.params.id), name, description });
 });
 
-app.delete('/api/categories/:id', (req, res) => {
-  console.log('DELETE category', req.params.id, 'role:', req.header('X-ROLE'));
+app.delete('/api/categories/:id', requireRole(['gestionnaire']), (req, res) => {
   db.prepare('UPDATE products SET category_id = NULL WHERE category_id = ?').run(req.params.id);
   db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
   res.status(204).end();
@@ -133,8 +132,7 @@ app.put('/api/suppliers/:id', requireRole(['gestionnaire']), (req, res) => {
   res.json({ id: Number(req.params.id), name, contact });
 });
 
-app.delete('/api/suppliers/:id', (req, res) => {
-  console.log('DELETE supplier', req.params.id, 'role:', req.header('X-ROLE'));
+app.delete('/api/suppliers/:id', requireRole(['gestionnaire']), (req, res) => {
   db.prepare('UPDATE products SET supplier_id = NULL WHERE supplier_id = ?').run(req.params.id);
   db.prepare('DELETE FROM suppliers WHERE id = ?').run(req.params.id);
   res.status(204).end();
@@ -245,30 +243,7 @@ app.get('/api/dashboard', (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 // IAGen
 // ══════════════════════════════════════════════════════════════════════════════
-function localReport(summaryLines, lowStock) {
-  let t = '=== Rapport de synthèse (génération locale) ===\n\n';
-  t += '1. État du stock\n' + summaryLines.join('\n') + '\n\n';
-  t += '2. Produits critiques\n';
-  t += lowStock.length === 0
-    ? 'Aucun produit sous le seuil minimum.\n'
-    : lowStock.map((p) => `  ⚠️  ${p.name} : stock ${p.stock} < seuil ${p.min_stock}`).join('\n') + '\n';
-  t += '\n3. Recommandation\nConsultez l\'onglet Recommandations IA. Configurez OPENAI_API_KEY dans backend/.env pour activer la génération par IA.\n';
-  return t;
-}
-
-function localRecommendations(rows) {
-  const sorted = rows.filter((r) => r.total_sorties > 0).sort((a, b) => b.total_sorties - a.total_sorties);
-  let t = '=== Recommandations de réapprovisionnement (génération locale) ===\n\n';
-  if (sorted.length === 0) {
-    return t + 'Aucune sortie enregistrée. Enregistrez des mouvements pour obtenir des recommandations.\n';
-  }
-  sorted.forEach((r, i) => {
-    const qty = Math.max(r.total_sorties, 10);
-    t += `${i + 1}. ${r.name}\n   Sorties totales : ${r.total_sorties}\n   Quantité suggérée : ~${qty} unités\n\n`;
-  });
-  t += 'Conseil : activez OPENAI_API_KEY pour des recommandations enrichies par IA.\n';
-  return t;
-}
+// (fonctions locales remplacées par la logique directe dans les endpoints)
 
 async function callOpenAI(prompt) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -292,16 +267,29 @@ async function callOpenAI(prompt) {
 app.get('/api/ai/report', async (req, res) => {
   try {
     const products = db.prepare('SELECT id, name, min_stock FROM products').all();
-    const lowStock = [];
-    const summaryLines = [];
+    const stockItems = [];
+    let criticalCount = 0;
+
     for (const p of products) {
       const stock = getStock(p.id);
-      summaryLines.push(`  - ${p.name} : stock=${stock}, seuil=${p.min_stock}`);
-      if (stock < p.min_stock) lowStock.push({ name: p.name, stock, min_stock: p.min_stock });
+      const status = stock === 0 ? 'rupture' : stock < p.min_stock ? 'critique' : 'ok';
+      if (status !== 'ok') criticalCount++;
+      stockItems.push({ name: p.name, stock, minStock: p.min_stock, status });
     }
-    const prompt = `État du stock :\n${summaryLines.join('\n')}\n\nProduits critiques :\n${lowStock.map((p) => `- ${p.name}: stock ${p.stock} < seuil ${p.min_stock}`).join('\n') || 'Aucun.'}\n\nGénère un rapport de synthèse structuré (introduction, état du stock, points critiques, recommandations) en français.`;
-    const text = await callOpenAI(prompt);
-    res.json({ report: text || localReport(summaryLines, lowStock) });
+
+    const healthScore = products.length > 0
+      ? Math.round(((products.length - criticalCount) / products.length) * 100)
+      : 100;
+
+    let aiComment = null;
+    if (process.env.OPENAI_API_KEY) {
+      const lines = stockItems.map(p => `- ${p.name}: stock=${p.stock}, seuil=${p.minStock}`);
+      const crit  = stockItems.filter(p => p.status !== 'ok').map(p => `- ${p.name}`);
+      const prompt = `Stock:\n${lines.join('\n')}\nCritiques: ${crit.join(', ') || 'aucun'}.\nDonne un commentaire d'analyse en 3 phrases max, en français.`;
+      aiComment = await callOpenAI(prompt);
+    }
+
+    res.json({ healthScore, totalProducts: products.length, criticalCount, stockItems, aiComment, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur lors de la génération du rapport' });
@@ -311,15 +299,31 @@ app.get('/api/ai/report', async (req, res) => {
 app.get('/api/ai/recommendations', async (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT p.id, p.name,
+      SELECT p.id, p.name, p.min_stock,
         COALESCE(SUM(CASE WHEN m.type='sortie' THEN m.quantity ELSE 0 END), 0) AS total_sorties
       FROM products p
       LEFT JOIN stock_movements m ON p.id = m.product_id
-      GROUP BY p.id, p.name
+      GROUP BY p.id, p.name, p.min_stock
     `).all();
-    const prompt = `Historique des sorties :\n${rows.map((r) => `- ${r.name}: ${r.total_sorties} unités sorties`).join('\n')}\n\nPropose des recommandations de réapprovisionnement claires (priorités, quantités, conseils) en français.`;
-    const text = await callOpenAI(prompt);
-    res.json({ recommendations: text || localRecommendations(rows) });
+
+    const items = rows
+      .filter(r => r.total_sorties > 0)
+      .sort((a, b) => b.total_sorties - a.total_sorties)
+      .map((r, i) => {
+        const stock   = getStock(r.id);
+        const deficit = Math.max(0, r.min_stock - stock);
+        const suggested = Math.max(r.total_sorties, r.min_stock * 2, deficit + r.min_stock);
+        const urgency = stock === 0 ? 'critique' : stock < r.min_stock ? 'elevee' : 'normale';
+        return { rank: i + 1, product: r.name, currentStock: stock, minStock: r.min_stock, totalSales: r.total_sorties, suggested, urgency };
+      });
+
+    let aiComment = null;
+    if (process.env.OPENAI_API_KEY) {
+      const prompt = `Sorties: ${rows.map(r => `${r.name}:${r.total_sorties}`).join(', ')}. Donne un conseil stratégique de réapprovisionnement en 2 phrases max, en français.`;
+      aiComment = await callOpenAI(prompt);
+    }
+
+    res.json({ items, aiComment, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur lors de la génération des recommandations' });

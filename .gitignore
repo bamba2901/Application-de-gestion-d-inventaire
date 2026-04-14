@@ -9,3 +9,5 @@ frontend/.vite/
 Thumbs.db
 .vscode/
 *.swp
+.claude/
+CLAUDE.md
