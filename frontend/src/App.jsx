@@ -616,8 +616,7 @@ export default function App() {
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     doc.text('Rapport d\'analyse des stocks', ml, 21);
     doc.setFontSize(8);
-    doc.text(`Genere le : ${date}`, W - mr, 14, { align: 'right' });
-    doc.text(`INF4173 - Projet Synthese`, W - mr, 20, { align: 'right' });
+    doc.text(`Genere le : ${date}`, W - mr, 17, { align: 'right' });
     y = 46;
 
     // ── Score de santé ────────────────────────────────────────────────────────
