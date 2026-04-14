@@ -624,13 +624,8 @@ export default function App() {
       '', `Généré le ${date} par StockFlow`,
     ].join('\n');
 
-    if (format === 'txt') {
-      const blob = new Blob([texte], { type: 'text/plain;charset=utf-8' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = `rapport-stockflow-${date}.txt`;
-      a.click(); URL.revokeObjectURL(url);
-      toast('Fichier TXT téléchargé', 'success');
+    if (false) {
+      // TXT supprimé
     } else {
       const hc = (aiReport?.healthScore ?? 0) >= 70 ? '#16a34a' : (aiReport?.healthScore ?? 0) >= 40 ? '#d97706' : '#dc2626';
       const html = `<!DOCTYPE html>
@@ -775,9 +770,13 @@ export default function App() {
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href = url; a.download = `rapport-stockflow-${date}.html`;
-      a.click(); URL.revokeObjectURL(url);
-      toast('Rapport HTML téléchargé', 'success');
+      a.href = url;
+      a.download = `rapport-stockflow-${date}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast('Rapport téléchargé — ouvre le fichier et fais Ctrl+P pour PDF', 'success');
     }
   };
 
@@ -1425,10 +1424,9 @@ export default function App() {
                 <button className="btn btn-primary" onClick={fetchAi} disabled={loadingAi}>
                   {loadingAi ? <><span className="spin">{I.refresh}</span> Analyse…</> : <>{I.spark} Lancer l'analyse</>}
                 </button>
-                {aiReport && <>
-                  <button className="btn btn-ghost btn-sm" onClick={() => downloadReport('txt')}>{I.download} TXT</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => downloadReport('pdf')}>{I.download} PDF</button>
-                </>}
+                {aiReport && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => downloadReport('pdf')}>{I.download} Télécharger PDF</button>
+                )}
               </div>
             </div>
             <div className="page-body">
