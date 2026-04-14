@@ -902,9 +902,12 @@ export default function App() {
     { id: 'suppliers',  label: 'Fournisseurs',       icon: I.truck },
     { section: 'Monitoring' },
     { id: 'alerts',     label: 'Alertes', icon: I.bell, badge: lowStock.length > 0 ? lowStock.length : null },
-    { id: 'ai',         label: 'Analyse IA',         icon: I.spark },
     ...(user?.role === 'gestionnaire'
-      ? [{ section: 'Admin' }, { id: 'users', label: 'Utilisateurs', icon: I.users }]
+      ? [
+          { id: 'ai',    label: 'Analyse IA',    icon: I.spark },
+          { section: 'Admin' },
+          { id: 'users', label: 'Utilisateurs',  icon: I.users },
+        ]
       : []),
   ];
 
@@ -942,7 +945,7 @@ export default function App() {
               Connexion
             </button>
             <p className="hint" style={{ textAlign: 'center', marginTop: '.25rem' }}>
-              Démo : <code>admin</code> / <code>admin123</code>
+              Gestionnaire : <code>admin</code> / <code>admin123</code> &nbsp;·&nbsp; Employé : <code>employe</code> / <code>employe123</code>
             </p>
           </form>
         </div>

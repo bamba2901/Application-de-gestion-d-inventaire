@@ -55,12 +55,14 @@ db.exec(`
   );
 `);
 
-// Seed utilisateur admin par défaut
+// Seed utilisateurs par défaut
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
 if (userCount === 0) {
   db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)')
     .run('admin', 'admin123', 'gestionnaire');
-  console.log('✅ Utilisateur admin créé (admin / admin123)');
+  db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)')
+    .run('employe', 'employe123', 'employe');
+  console.log('✅ Utilisateurs créés : admin / admin123 (gestionnaire) | employe / employe123 (employé)');
 }
 
 module.exports = db;
