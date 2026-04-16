@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 
-const API = 'http://localhost:4000/api';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 const get = (path, opts = {}) => fetch(`${API}${path}`, opts).then(r => r.json());
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
