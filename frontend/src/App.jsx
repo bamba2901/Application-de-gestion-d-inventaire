@@ -612,7 +612,7 @@ export default function App() {
     doc.rect(0, 0, W, 38, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20); doc.setFont('helvetica', 'bold');
-    doc.text('StockFlow', ml, 14);
+    doc.text("Systeme de gestion d'inventaire", ml, 14);
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     doc.text('Rapport d\'analyse des stocks', ml, 21);
     doc.setFontSize(8);
@@ -731,7 +731,7 @@ export default function App() {
       doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
       doc.line(ml, 285, W - mr, 285);
       doc.setTextColor(148, 163, 184); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-      doc.text('StockFlow — Systeme de gestion d\'inventaire', ml, 290);
+      doc.text("Systeme de gestion d'inventaire", ml, 290);
       doc.text(`Page ${p} / ${pages}`, W - mr, 290, { align: 'right' });
     }
 
@@ -804,7 +804,7 @@ export default function App() {
       <div class="logo">
         <div class="logo-icon">📦</div>
         <div>
-          <div class="logo-name">StockFlow</div>
+          <div class="logo-name">Système de gestion d'inventaire</div>
           <div class="logo-tag">Système de gestion d'inventaire</div>
         </div>
       </div>
@@ -871,7 +871,7 @@ export default function App() {
   </div>
 
   <div class="footer">
-    <span><strong>StockFlow</strong> — Système de gestion d'inventaire intelligent</span>
+    <span><strong>Système de gestion d'inventaire</strong></span>
     <span>Document généré automatiquement le ${date}</span>
   </div>
 
@@ -929,7 +929,7 @@ export default function App() {
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <h1>StockFlow</h1>
+            <h1>Système de gestion d'inventaire</h1>
             <p>Gestion intelligente des stocks</p>
           </div>
           <form className="form" onSubmit={doLogin}>
@@ -1023,7 +1023,7 @@ export default function App() {
             </svg>
           </div>
           <div>
-            <div className="brand-name">StockFlow</div>
+            <div className="brand-name">Système de gestion d'inventaire</div>
             <div className="brand-ver">v1.0</div>
           </div>
         </div>
