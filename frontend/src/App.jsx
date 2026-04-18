@@ -369,7 +369,7 @@ function Modal({ title, onClose, children }) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser]     = useState(null);
-  const [login, setLogin]   = useState({ username: 'admin', password: 'admin123' });
+  const [login, setLogin]   = useState({ username: '', password: '' });
   const [tab, setTab]       = useState('dashboard');
   const [search, setSearch] = useState('');
 
@@ -944,9 +944,6 @@ export default function App() {
             <button type="submit" className="btn btn-primary" style={{ marginTop: '.3rem' }}>
               Connexion
             </button>
-            <p className="hint" style={{ textAlign: 'center', marginTop: '.25rem' }}>
-              Gestionnaire : <code>admin</code> / <code>admin123</code> &nbsp;·&nbsp; Employé : <code>employe</code> / <code>employe123</code>
-            </p>
           </form>
         </div>
       </div>
